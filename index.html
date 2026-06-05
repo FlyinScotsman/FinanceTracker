@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Finance Tracker</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0f1720">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Finances">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+  :root{
+    --bg:#0f1720; --card:#18232f; --card2:#1f2d3b; --ink:#e8eef4; --muted:#9fb0c0;
+    --line:#2b3b4d; --accent:#3ea6ff; --good:#37c98a; --warn:#ffb74d; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.45;-webkit-text-size-adjust:100%}
+  header{padding:calc(env(safe-area-inset-top, 0px) + 18px) 16px 8px;max-width:980px;margin:0 auto}
+  h1{font-size:20px;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:13px}
+  main{max-width:980px;margin:0 auto;padding:8px 16px 60px}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 16px}
+  .tab{background:var(--card);border:1px solid var(--line);color:var(--muted);
+    padding:8px 14px;border-radius:999px;font-size:14px;cursor:pointer}
+  .tab.active{background:var(--accent);color:#06121e;border-color:var(--accent);font-weight:600}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .kpi .lab{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .kpi .val{font-size:22px;font-weight:700;margin-top:4px}
+  .kpi .note{font-size:12px;color:var(--muted);margin-top:3px}
+  .val.good{color:var(--good)} .val.warn{color:var(--warn)} .val.bad{color:var(--bad)}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-top:14px}
+  .panel h2{font-size:15px;margin:0 0 10px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--muted);font-weight:600;font-size:12px}
+  td.r,th.r{text-align:right}
+  tr.income td{color:var(--good)}
+  tr.low td{background:rgba(255,107,107,.12)}
+  .pill.oneoff{background:rgba(255,107,107,.15);color:var(--bad);border-color:#5a2b2b}
+  tr.ofx td{color:var(--bad)}
+  .pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--card2);color:var(--muted);border:1px solid var(--line)}
+  button.act{background:var(--accent);color:#06121e;border:none;border-radius:10px;padding:9px 14px;font-weight:600;cursor:pointer;font-size:14px}
+  button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:10px;padding:8px 12px;cursor:pointer;font-size:13px}
+  button.tiny{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:3px 8px;cursor:pointer;font-size:12px}
+  button.del{color:var(--bad);border-color:#5a2b2b}
+  input,select{background:var(--card2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:9px 10px;font-size:14px;width:100%;max-width:100%;-webkit-appearance:none;appearance:none}
+  input[type=date]{font-size:13px}
+  label{display:block;font-size:12px;color:var(--muted);margin:8px 0 4px}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row>div{min-width:0;overflow:hidden}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  .row3>div{min-width:0;overflow:hidden}
+  .hide{display:none}
+  .listhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .muted{color:var(--muted);font-size:13px}
+  .bignum{font-size:15px;font-weight:700}
+  svg{display:block;width:100%;height:auto}
+  .charttip{position:absolute;pointer-events:none;background:var(--card2);border:1px solid var(--accent);
+    border-radius:8px;padding:6px 9px;font-size:12px;color:var(--ink);transform:translate(-50%,-125%);
+    white-space:nowrap;display:none;z-index:5;line-height:1.3;text-align:center}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:6px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:3px;vertical-align:middle;margin-right:4px}
+  .checkout{font-size:14px;margin-top:8px;padding:10px;border-radius:10px;border:1px solid var(--line)}
+  .scroll{overflow-x:auto}
+  .fcast-bal{display:flex;align-items:baseline;gap:10px;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:12px}
+  .fcast-bal .lab{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .fcast-bal .val{font-size:20px;font-weight:700;margin-left:auto}
+  #schedtable{table-layout:fixed;width:100%;max-width:100%}
+  #schedtable col.sc-item{width:38%}
+  #schedtable col.sc-when{width:30%}
+  #schedtable col.sc-amt{width:20%}
+  #schedtable col.sc-act{width:12%}
+  #schedtable td,#schedtable th{overflow:hidden;text-overflow:ellipsis}
+  #schedtable td:first-child{white-space:normal;word-break:break-word}
+  #schedtable .pill{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  #schedtable .del{padding:4px 8px;font-size:15px;line-height:1}
+  #schedtable .sched-row{cursor:pointer}
+  #schedtable .sched-row:active td{background:rgba(62,166,255,.10)}
+  #fcasttable .fc-edit{cursor:pointer}
+  #fcasttable .fc-edit:active td{background:rgba(62,166,255,.10)}
+  .row>div,.row3>div{min-width:0}
+  @media(max-width:560px){
+    .row,.row3{grid-template-columns:1fr 1fr}
+    .kpi .val{font-size:19px}
+    th,td{padding:7px 5px;font-size:12.5px}
+    #next30 td:nth-child(2),#next30 th:nth-child(2),
+    #fcasttable td:nth-child(2),#fcasttable th:nth-child(2){white-space:normal;word-break:break-word}
+    td.r,th.r{white-space:nowrap}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Finance Tracker</h1>
+  <div class="sub" id="syncbar" style="display:none"></div>
+</header>
+<main>
+  <div class="tabs">
+    <div class="tab active" data-tab="dash">Dashboard</div>
+    <div class="tab" data-tab="fcast">Forecast</div>
+    <div class="tab" data-tab="sched">Schedule</div>
+    <div class="tab" data-tab="add">Add item</div>
+    <div class="tab" data-tab="check">Big purchase?</div>
+    <div class="tab" data-tab="shock">Unpaid weeks</div>
+    <div class="tab" data-tab="savings">Savings</div>
+    <div class="tab" data-tab="set">Settings</div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <section id="dash">
+    <div class="cards" id="kpis"></div>
+    <div class="panel">
+      <h2>Projected balance</h2>
+      <p class="muted" style="margin:-4px 0 8px">Hover or tap the line to read the balance on any day.</p>
+      <div id="chart" style="position:relative;touch-action:none"></div>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--accent)"></span>Balance</span>
+        <span><span class="dot" style="background:var(--muted)"></span>Zero</span>
+        <span><span class="dot" style="background:var(--bad)"></span>Lowest point</span>
+        <span><span class="dot" style="background:var(--warn)"></span>Overdraft limit</span>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Next 30 days</h2>
+      <div class="scroll"><table id="next30"></table></div>
+    </div>
+  </section>
+
+  <!-- FORECAST -->
+  <section id="fcast" class="hide">
+    <div class="panel">
+      <div class="listhead">
+        <h2 style="margin:0">Full forecast</h2>
+        <span class="muted" id="fcastrange"></span>
+      </div>
+      <p class="muted">Every dated event out to your forecast window (set the end date under Settings). Recurring items fill in automatically &mdash; no copying. Tap a recurring entry to change its amount for that one date only.</p>
+      <div class="fcast-bal">
+        <span class="lab">Balance now</span>
+        <span class="val" id="fcast-bal-val"></span>
+      </div>
+      <div class="scroll"><table id="fcasttable"></table></div>
+    </div>
+  </section>
+
+  <!-- SCHEDULE -->
+  <section id="sched" class="hide">
+    <div class="panel">
+      <div class="listhead">
+        <h2 style="margin:0">Everything in your plan</h2>
+        <span class="muted" id="schedcount"></span>
+      </div>
+      <p class="muted">Tap any line to edit it, or use &times; to delete &mdash; the forecast recalculates instantly. Monthly bills repeat on their day; weekly items repeat each week; one-offs hit once.</p>
+      <table id="schedtable"></table>
+    </div>
+  </section>
+
+  <!-- ADD -->
+  <section id="add" class="hide">
+    <div class="panel">
+      <h2 id="addtitle">Add a money event</h2>
+      <input type="hidden" id="f_id">
+      <label>What is it?</label>
+      <input id="f_name" placeholder="e.g. Netflix, Wages, Birthday gift">
+      <div class="row">
+        <div>
+          <label>In or out?</label>
+          <select id="f_dir"><option value="-1">Money out</option><option value="1">Money in</option></select>
+        </div>
+        <div>
+          <label>Amount (&pound;)</label>
+          <input id="f_amt" type="number" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+      <label>How often?</label>
+      <select id="f_kind">
+        <option value="monthly">Every month (on a set day)</option>
+        <option value="weekly">Every week (on a set weekday)</option>
+        <option value="oneoff">One-off (single date)</option>
+      </select>
+      <div id="f_monthly_wrap">
+        <label>Day of month (1&ndash;31)</label>
+        <input id="f_day" type="number" min="1" max="31" value="1">
+      </div>
+      <div id="f_weekly_wrap" class="hide">
+        <label>Weekday</label>
+        <select id="f_weekday">
+          <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option>
+          <option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option>
+        </select>
+      </div>
+      <div id="f_oneoff_wrap" class="hide">
+        <label>Date</label>
+        <input id="f_date" type="date">
+      </div>
+      <div id="f_recur_wrap" class="row">
+        <div><label>Starts on (optional)</label><input id="f_start" type="date"></div>
+        <div><label>Ends on (optional)</label><input id="f_until" type="date"></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px">
+        <button class="act" id="f_save">Save</button>
+        <button class="ghost" id="f_cancel">Clear</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- BIG PURCHASE CHECK -->
+  <section id="check" class="hide">
+    <div class="panel">
+      <h2>Can I afford this?</h2>
+      <p class="muted">Enter a one-off purchase and I'll tell you if your lowest projected point still stays above your safety floor (and inside your overdraft).</p>
+      <div class="row">
+        <div><label>Amount (&pound;)</label><input id="c_amt" type="number" step="0.01" placeholder="0.00"></div>
+        <div><label>When?</label><input id="c_date" type="date"></div>
+      </div>
+      <div style="margin-top:12px"><button class="act" id="c_go">Check it</button></div>
+      <div id="c_out"></div>
+    </div>
+  </section>
+
+  <!-- UNPAID WEEKS / INCOME SHOCK -->
+  <section id="shock" class="hide">
+    <div class="panel">
+      <h2>What if the money stops?</h2>
+      <p class="muted">Model a stretch of unpaid weeks &mdash; e.g. the summer gap or Christmas. I'll strip out wage income from that point and show where your balance bottoms out against your floor and overdraft.</p>
+      <div class="row">
+        <div><label>First unpaid week from</label><input id="k_date" type="date"></div>
+        <div><label>How many weeks unpaid?</label><input id="k_weeks" type="number" min="1" step="1" placeholder="e.g. 3"></div>
+      </div>
+      <div style="margin-top:12px"><button class="act" id="k_go">Run it</button></div>
+      <div id="k_out"></div>
+    </div>
+  </section>
+
+  <!-- SAVINGS / PUT BY -->
+  <section id="savings" class="hide">
+    <div class="panel">
+      <h2>What can I put by?</h2>
+      <p class="muted" id="v_spare" style="margin:-2px 0 12px"></p>
+      <div class="row">
+        <div><label>Saving for (optional)</label><input id="v_purpose" placeholder="e.g. Christmas, buffer"></div>
+        <div><label>Target (&pound;, optional)</label><input id="v_target" type="number" step="1" placeholder="e.g. 6000"></div>
+      </div>
+      <div class="row3">
+        <div><label>Set aside</label><select id="v_freq"><option value="oneoff">One-off (now)</option><option value="weekly">Every week</option><option value="monthly">Every month</option></select></div>
+        <div><label>Amount (&pound;)</label><input id="v_amt" type="number" step="0.01" placeholder="0.00"></div>
+        <div><label>Starting from</label><input id="v_from" type="date"></div>
+      </div>
+      <div class="row">
+        <div><label>Want it by (optional)</label><input id="v_bydate" type="date"></div>
+        <div></div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="act" id="v_go">Check it</button>
+        <button class="ghost" id="v_commit">Set aside in my plan</button>
+      </div>
+      <div id="v_out"></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section id="set" class="hide">
+    <div class="panel">
+      <h2>Settings</h2>
+      <div class="row">
+        <div><label>Current balance (&pound;)</label><input id="s_bal" type="number" step="0.01"></div>
+        <div><label>As at date</label><input id="s_date" type="date"></div>
+      </div>
+      <div class="row3">
+        <div><label>Overdraft limit (&pound;)</label><input id="s_od" type="number" step="1"></div>
+        <div><label>Safety floor (&pound;)</label><input id="s_floor" type="number" step="1"></div>
+        <div><label>Forecast end date</label><input id="s_end" type="date"></div>
+      </div>
+      <hr style="border-color:var(--line);margin:14px 0">
+      <h2 style="font-size:14px">Keep wages running after the last one you've entered</h2>
+      <div class="row3">
+        <div><label>Auto-add weekly wage?</label><select id="s_autow"><option value="1">Yes</option><option value="0">No</option></select></div>
+        <div><label>Amount (&pound;)</label><input id="s_autowamt" type="number" step="0.01"></div>
+        <div><label>Weekday</label><select id="s_autowwd">
+          <option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option>
+          <option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option><option value="0">Sunday</option>
+        </select></div>
+      </div>
+      <div style="margin-top:14px"><button class="act" id="s_save">Save settings</button></div>
+    </div>
+    <div class="panel">
+      <h2>Cloud sync</h2>
+      <p class="muted">Keeps a copy of your data in your private cloud store, so nothing's lost if this phone dies. Enter your passphrase once on each device &mdash; then it syncs automatically.</p>
+      <label>Passphrase</label>
+      <input id="y_key" type="password" placeholder="your cloud passphrase">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px">
+        <button class="act" id="y_connect">Connect</button>
+        <button class="ghost" id="y_sync">Sync now</button>
+        <button class="ghost" id="y_off">Turn off</button>
+      </div>
+      <p class="muted" id="y_status" style="margin-top:10px">Not connected</p>
+    </div>
+    <div class="panel">
+      <h2>Back up / restore</h2>
+      <p class="muted">Your data saves automatically on this device. Export a backup file to be safe, or to move it to another device.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="ghost" id="exp">Export backup</button>
+        <button class="ghost" id="impbtn">Import backup</button>
+        <input type="file" id="impfile" accept="application/json" class="hide">
+        <button class="ghost" id="dedupe">Remove duplicates</button>
+        <button class="del tiny" id="reset">Reset to pre-loaded data</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* ---------- starter data (empty shell — your data loads via Import) ---------- */
+function uid(){return Math.random().toString(36).slice(2,9);}
+function seed(){
+  return {
+    settings:{startBalance:0, asAt:"2026-06-01", overdraft:5000, floor:0, horizon:120,
+              autoWage:0, autoWageAmt:2000, autoWageWd:4},
+    items:[]
+  };
+}
+
+/* ---------- state ---------- */
+var KEY="allan_finance_tracker_v1";
+var SKEY="allan_finance_sync_key";
+var SYNC_URL="https://finance-data.allan-mclaughlin.workers.dev/";
+var S=load();
+function load(){ try{var r=localStorage.getItem(KEY); if(r) return JSON.parse(r);}catch(e){} return seed(); }
+function saveLocal(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
+function save(){ S._t=Date.now(); saveLocal(); schedulePush(); }
+
+/* ---------- cloud sync (Cloudflare Worker + KV) ---------- */
+var SLAST="allan_finance_sync_last";
+function syncKey(){ try{return localStorage.getItem(SKEY)||"";}catch(e){return "";} }
+function setSyncKey(k){ try{ if(k) localStorage.setItem(SKEY,k); else localStorage.removeItem(SKEY); }catch(e){} }
+function lastSynced(){ try{return localStorage.getItem(SLAST)||"";}catch(e){return "";} }
+function stamp(){ return new Date().toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}); }
+function setHeaderSync(t){ var e=document.getElementById("syncbar"); if(!e)return; e.textContent=t||""; e.style.display=t?"block":"none"; }
+function setSyncStatus(t){ var e=document.getElementById("y_status"); if(e) e.textContent=t; }
+function bothStatus(v,h){ setSyncStatus(v); setHeaderSync(h); }
+function markSynced(verbosePrefix){ var s=stamp(); try{localStorage.setItem(SLAST,s);}catch(e){} bothStatus((verbosePrefix||"Synced ✓ ")+s, "Synced ✓ · last synced "+s); }
+function syncResting(){ if(!syncKey()){ setHeaderSync(""); return; } var t=lastSynced(); setHeaderSync(t?("Synced ✓ · last synced "+t):"Connected — not yet synced"); }
+var pushTimer=null;
+function schedulePush(){ if(!syncKey())return; clearTimeout(pushTimer); pushTimer=setTimeout(pushToCloud,1500); }
+function pushToCloud(){
+  var k=syncKey(); if(!k)return;
+  bothStatus("Saving…","Saving…");
+  fetch(SYNC_URL,{method:"PUT",keepalive:true,headers:{"Content-Type":"application/json","X-App-Key":k},body:JSON.stringify(S)})
+    .then(function(r){
+      if(r.status===401){ bothStatus("Passphrase rejected — check it in Cloud sync","Sync error — check passphrase"); return; }
+      if(!r.ok){ bothStatus("Sync failed — will retry","Sync failed — will retry"); return; }
+      markSynced("Synced ✓ ");
+    })
+    .catch(function(){ bothStatus("Offline — will sync when back online","Offline — will sync later"); });
+}
+function refreshViews(){ render(); renderSched(); renderForecast(); fillSettings(); if(typeof fillSavings==="function") fillSavings(); }
+function pullFromCloud(){
+  var k=syncKey(); if(!k){ bothStatus("Not connected",""); return; }
+  bothStatus("Checking…","Checking…");
+  fetch(SYNC_URL,{method:"GET",headers:{"X-App-Key":k}})
+    .then(function(r){
+      if(r.status===401){ bothStatus("Passphrase rejected — check it in Cloud sync","Sync error — check passphrase"); return null; }
+      if(!r.ok){ bothStatus("Couldn't reach the cloud","Couldn't reach the cloud"); return null; }
+      return r.text();
+    })
+    .then(function(body){
+      if(body===null) return;
+      if(!body){ if(S.items&&S.items.length){ pushToCloud(); } else { bothStatus("Connected (cloud is empty)","Connected — not yet synced"); } return; }
+      var cloudS; try{ cloudS=JSON.parse(body); }catch(e){ bothStatus("Cloud data unreadable","Sync error"); return; }
+      var localT=S._t||0, cloudT=cloudS._t||0;
+      if(cloudT>localT){ S=cloudS; saveLocal(); refreshViews(); markSynced("Synced ✓ loaded latest "); }
+      else if(localT>cloudT){ pushToCloud(); }
+      else { markSynced("Synced ✓ "); }
+    })
+    .catch(function(){ bothStatus("Offline","Offline — will sync later"); });
+}
+function connectSync(){
+  var k=document.getElementById("y_key").value.trim();
+  if(!k){ alert("Enter your passphrase first."); return; }
+  setSyncKey(k); pullFromCloud();
+}
+function disconnectSync(){
+  if(!confirm("Turn off cloud sync on this device?\n\nYour data stays on the device and in the cloud — this device just stops syncing until you reconnect.")) return;
+  setSyncKey(""); document.getElementById("y_key").value=""; bothStatus("Not connected",""); 
+}
+function fillSync(){ var k=syncKey(); var f=document.getElementById("y_key"); if(f) f.value=k; var t=lastSynced(); setSyncStatus(k?(t?("Connected · last synced "+t):"Connected"):"Not connected"); }
+
+
+/* ---------- date helpers (noon to dodge TZ) ---------- */
+function d(isoStr){var p=isoStr.split("-").map(Number);return new Date(p[0],p[1]-1,p[2],12,0,0);}
+function iso(dt){return dt.getFullYear()+"-"+String(dt.getMonth()+1).padStart(2,"0")+"-"+String(dt.getDate()).padStart(2,"0");}
+function addDays(dt,n){var x=new Date(dt);x.setDate(x.getDate()+n);return x;}
+function fmtDate(dt){return dt.toLocaleDateString("en-GB",{day:"2-digit",month:"short"});}
+function money(n){return (n<0?"-£":"£")+Math.abs(n).toLocaleString("en-GB",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function money0(n){return (n<0?"-£":"£")+Math.abs(Math.round(n)).toLocaleString("en-GB");}
+/* forecast window end: prefer an explicit end date, fall back to legacy horizon days */
+function fcEnd(){
+  if(S.settings.endDate){ var e=d(S.settings.endDate); if(!isNaN(e.getTime())) return e; }
+  return addDays(d(S.settings.asAt), S.settings.horizon||120);
+}
+
+/* ---------- forecast engine ---------- */
+function buildForecast(extra,shock,extraEvents){
+  var start=d(S.settings.asAt), end=fcEnd();
+  var ev=[];
+  S.items.forEach(function(it){
+    var fromD=(it.startOn&&(it.kind==="monthly"||it.kind==="weekly"))?d(it.startOn):null;
+    var untilD=(it.until&&(it.kind==="monthly"||it.kind==="weekly"))?d(it.until):null;
+    if(it.kind==="oneoff"){
+      var dt=d(it.date); if(dt>start&&dt<=end) ev.push({date:dt,name:it.name,amt:it.amount,kind:"oneoff"});
+    } else if(it.kind==="monthly"){
+      var cur=new Date(start.getFullYear(),start.getMonth(),1,12);
+      while(cur<=end){
+        var dim=new Date(cur.getFullYear(),cur.getMonth()+1,0).getDate();
+        var day=Math.min(it.day,dim);
+        var dt2=new Date(cur.getFullYear(),cur.getMonth(),day,12);
+        if(dt2>start&&dt2<=end&&(!fromD||dt2>=fromD)&&(!untilD||dt2<=untilD)){
+          var o2=iso(dt2), a2=(it.overrides&&(o2 in it.overrides))?it.overrides[o2]:it.amount;
+          ev.push({date:dt2,name:it.name,amt:a2,kind:"monthly",id:it.id,occ:o2,ovr:!!(it.overrides&&(o2 in it.overrides))});
+        }
+        cur=new Date(cur.getFullYear(),cur.getMonth()+1,1,12);
+      }
+    } else if(it.kind==="weekly"){
+      var dt3=new Date(start);
+      while(dt3.getDay()!==it.weekday) dt3=addDays(dt3,1);
+      for(;dt3<=end;dt3=addDays(dt3,7)){ if(dt3>start&&(!fromD||dt3>=fromD)&&(!untilD||dt3<=untilD)){
+        var o3=iso(dt3), a3=(it.overrides&&(o3 in it.overrides))?it.overrides[o3]:it.amount;
+        ev.push({date:new Date(dt3),name:it.name,amt:a3,kind:"weekly",id:it.id,occ:o3,ovr:!!(it.overrides&&(o3 in it.overrides))});
+      } }
+    }
+  });
+  if(Number(S.settings.autoWage)===1){
+    var wd=S.items.filter(function(i){return i.kind==="oneoff"&&/wage/i.test(i.name);}).map(function(i){return d(i.date).getTime();});
+    var lastWage=wd.length?new Date(Math.max.apply(null,wd)):start;
+    var dt4=addDays(lastWage,1);
+    while(dt4.getDay()!==Number(S.settings.autoWageWd)) dt4=addDays(dt4,1);
+    for(;dt4<=end;dt4=addDays(dt4,7)){ if(dt4>lastWage&&dt4>start) ev.push({date:new Date(dt4),name:"Wages (projected)",amt:Number(S.settings.autoWageAmt)}); }
+  }
+  if(extra) ev.push({date:d(extra.date),name:extra.name||"Test purchase",amt:extra.amt,kind:"oneoff"});
+  if(extraEvents&&extraEvents.length) extraEvents.forEach(function(e){ ev.push(e); });
+  ev=ev.filter(function(e){return e.date>start&&e.date<=end;});
+  if(shock&&shock.weeks>0){
+    var sFrom=shock.from, sTo=addDays(shock.from,shock.weeks*7);
+    ev=ev.filter(function(e){ return !(e.amt>0 && /wage/i.test(e.name) && e.date>=sFrom && e.date<sTo); });
+  }
+  ev.sort(function(a,b){ return a.date-b.date || (a.amt-b.amt); });
+  var bal=S.settings.startBalance, rows=[], min=bal, minDate=start;
+  ev.forEach(function(e){ bal+=e.amt; rows.push({date:e.date,name:e.name,amt:e.amt,bal:bal,kind:e.kind,id:e.id,occ:e.occ,ovr:e.ovr}); if(bal<min){min=bal;minDate=e.date;} });
+  return {rows:rows,min:min,minDate:minDate,end:bal,start:S.settings.startBalance};
+}
+
+/* ---------- render dashboard ---------- */
+function render(){
+  var F=buildForecast();
+  var floor=S.settings.floor, sb=S.settings.startBalance, start=d(S.settings.asAt);
+  var safe=Math.min(sb,F.min)-floor;
+  var dipsOD=F.min<0, breach=F.min<-S.settings.overdraft;
+  /* first date the balance crosses the danger lines (today counts if already under) */
+  var firstFloor=(sb<floor)?start:null, firstZero=(sb<0)?start:null;
+  for(var fi=0;fi<F.rows.length;fi++){
+    var b=F.rows[fi].bal;
+    if(firstFloor===null && b<floor) firstFloor=F.rows[fi].date;
+    if(firstZero===null && b<0) firstZero=F.rows[fi].date;
+    if(firstFloor!==null && firstZero!==null) break;
+  }
+  var fmtShort=function(dt){return dt.toLocaleDateString("en-GB",{day:"numeric",month:"short"});};
+  var underLab=(floor>0)?"Below floor":"Goes overdrawn", underKpi;
+  if(firstFloor){
+    var n=(floor>0)?("under your "+money0(floor)+" floor"):"first day you go overdrawn";
+    if(floor>0 && firstZero && (+firstZero!==+firstFloor)) n="under floor; overdrawn "+fmtShort(firstZero);
+    underKpi={lab:underLab, val:fmtShort(firstFloor), cls:"bad", note:n};
+  } else {
+    underKpi={lab:underLab, val:"Never", cls:"good", note:"stays above your floor all forecast"};
+  }
+  var kpis=[
+    {lab:"Balance now", val:money0(sb), cls:"", note:"in the account today"},
+    {lab:"Safe to spend now", val:money0(safe), cls:(safe<0?"bad":(safe<200?"warn":"good")),
+      note:(safe<0?"you'd rely on the overdraft":"without dipping below your floor")},
+    underKpi,
+    {lab:"Lowest point", val:money0(F.min), cls:(F.min<0?(breach?"bad":"warn"):"good"),
+      note:"on "+F.minDate.toLocaleDateString("en-GB",{day:"numeric",month:"short"})},
+    {lab:"Overdraft", val:(dipsOD?money0(Math.abs(F.min))+" used":"not needed"),
+      cls:(breach?"bad":(dipsOD?"warn":"good")), note:"limit "+money0(S.settings.overdraft)},
+    {lab:"End of forecast", val:money0(F.end), cls:(F.end<0?"bad":"good"),
+      note:"on "+fcEnd().toLocaleDateString("en-GB",{day:"numeric",month:"short"})}
+  ];
+  document.getElementById("kpis").innerHTML=kpis.map(function(k){
+    return '<div class="kpi"><div class="lab">'+k.lab+'</div><div class="val '+k.cls+'">'+k.val+'</div><div class="note">'+k.note+'</div></div>';
+  }).join("");
+  drawChart(F);
+  var cutoff=addDays(d(S.settings.asAt),30);
+  var n30=F.rows.filter(function(r){return r.date<=cutoff;});
+  document.getElementById("next30").innerHTML=
+    '<tr><th>Date</th><th>Item</th><th class="r">In/Out</th><th class="r">Balance</th></tr>'+
+    n30.map(function(r){
+      return '<tr class="'+(r.amt>0?'income':'')+' '+(Math.abs(r.bal-F.min)<0.005?'low':'')+'">'+
+        '<td>'+fmtDate(r.date)+'</td><td>'+r.name+'</td><td class="r">'+money(r.amt)+'</td>'+
+        '<td class="r" style="color:'+(r.bal<0?'var(--bad)':'var(--ink)')+'">'+money(r.bal)+'</td></tr>';
+    }).join("");
+}
+
+/* ---------- SVG chart (axis labels + hover/tap readout) ---------- */
+function drawChart(F){
+  var W=920,H=260,padL=8,padR=8,padT=16,padB=26;
+  var pts=[{date:d(S.settings.asAt),bal:S.settings.startBalance,name:"Balance now"}];
+  F.rows.forEach(function(r){pts.push({date:r.date,bal:r.bal,name:r.name});});
+  var xs=pts.map(function(p){return p.date.getTime();});
+  var ys=pts.map(function(p){return p.bal;});
+  var minX=Math.min.apply(null,xs), maxX=Math.max.apply(null,xs);
+  var minY=Math.min.apply(null,[0].concat(ys,[-S.settings.overdraft*0.15]));
+  var maxY=Math.max.apply(null,[0].concat(ys));
+  var pad=(maxY-minY)*0.10||100; minY-=pad; maxY+=pad;
+  function X(t){return padL+(t-minX)/((maxX-minX)||1)*(W-padL-padR);}
+  function Y(v){return padT+(maxY-v)/((maxY-minY)||1)*(H-padT-padB);}
+  var P=pts.map(function(p){return {date:p.date,bal:p.bal,name:p.name,px:X(p.date.getTime()),py:Y(p.bal)};});
+  var path=P.map(function(p,i){return (i?"L":"M")+p.px.toFixed(1)+" "+p.py.toFixed(1);}).join(" ");
+  var zeroY=Y(0), odY=Y(-S.settings.overdraft);
+  var area="M "+P[0].px.toFixed(1)+" "+zeroY.toFixed(1)+" "+
+    P.map(function(p){return "L"+p.px.toFixed(1)+" "+p.py.toFixed(1);}).join(" ")+
+    " L "+P[P.length-1].px.toFixed(1)+" "+zeroY.toFixed(1)+" Z";
+  var mX=X(F.minDate.getTime()), mY=Y(F.min);
+  function niceStep(r){var raw=r/4||1;var mag=Math.pow(10,Math.floor(Math.log10(raw)));var n=raw/mag;return (n>=5?5:n>=2?2:1)*mag;}
+  var step=niceStep(maxY-minY), ygrid="";
+  for(var v=Math.ceil(minY/step)*step; v<maxY; v+=step){
+    var gy=Y(v);
+    ygrid+='<line x1="'+padL+'" y1="'+gy.toFixed(1)+'" x2="'+(W-padR)+'" y2="'+gy.toFixed(1)+'" stroke="var(--line)" stroke-width="1" opacity="'+(Math.abs(v)<0.01?0:0.55)+'"/>';
+    ygrid+='<text x="'+(padL+3)+'" y="'+(gy-3).toFixed(1)+'" fill="var(--muted)" font-size="11">'+money0(v)+'</text>';
+  }
+  var mgrid="", mlab="";
+  var c=new Date(pts[0].date.getFullYear(),pts[0].date.getMonth(),1,12);
+  while(c.getTime()<=maxX){
+    if(c.getTime()>=minX){var gx=X(c.getTime());
+      mgrid+='<line x1="'+gx+'" y1="'+padT+'" x2="'+gx+'" y2="'+(H-padB)+'" stroke="var(--line)" stroke-width="1" opacity="0.5"/>';
+      mlab+='<text x="'+(gx+3)+'" y="'+(H-8)+'" fill="var(--muted)" font-size="11">'+c.toLocaleDateString("en-GB",{month:"short"})+'</text>';}
+    c=new Date(c.getFullYear(),c.getMonth()+1,1,12);
+  }
+  var odLine = (odY<H-padB&&odY>padT) ? '<line x1="'+padL+'" y1="'+odY+'" x2="'+(W-padR)+'" y2="'+odY+'" stroke="var(--warn)" stroke-dasharray="3 5" stroke-width="1"/>' : "";
+  var el=document.getElementById("chart");
+  el.innerHTML=
+    '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" role="img">'+
+      ygrid+mgrid+
+      '<path d="'+area+'" fill="rgba(62,166,255,.12)"/>'+
+      '<line x1="'+padL+'" y1="'+zeroY+'" x2="'+(W-padR)+'" y2="'+zeroY+'" stroke="var(--muted)" stroke-dasharray="4 4" stroke-width="1.2"/>'+
+      odLine+
+      '<path d="'+path+'" fill="none" stroke="var(--accent)" stroke-width="2.2"/>'+
+      '<circle cx="'+mX+'" cy="'+mY+'" r="4.5" fill="var(--bad)"/>'+
+      '<text x="'+Math.min(mX,W-150).toFixed(1)+'" y="'+Math.max(mY-9,12).toFixed(1)+'" fill="var(--bad)" font-size="12" font-weight="700">low '+money0(F.min)+'</text>'+
+      mlab+
+      '<g id="xhair" style="display:none">'+
+        '<line id="xhairline" y1="'+padT+'" y2="'+(H-padB)+'" stroke="var(--ink)" stroke-width="1" opacity="0.55"/>'+
+        '<circle id="xhairdot" r="4.5" fill="var(--accent)" stroke="#06121e" stroke-width="1.5"/>'+
+      '</g>'+
+    '</svg><div class="charttip" id="charttip"></div>';
+  var svgEl=el.querySelector("svg");
+  function handle(ev){
+    var rect=svgEl.getBoundingClientRect();
+    var cx=(ev.touches&&ev.touches[0])?ev.touches[0].clientX:ev.clientX;
+    if(cx==null) return;
+    var vx=(cx-rect.left)/rect.width*W;
+    var best=P[0],bd=1e9;
+    P.forEach(function(p){var dd=Math.abs(p.px-vx); if(dd<bd){bd=dd;best=p;}});
+    var xh=document.getElementById("xhair"); xh.style.display="";
+    var ln=document.getElementById("xhairline"); ln.setAttribute("x1",best.px); ln.setAttribute("x2",best.px);
+    var dot=document.getElementById("xhairdot"); dot.setAttribute("cx",best.px); dot.setAttribute("cy",best.py);
+    var tip=document.getElementById("charttip"); tip.style.display="block";
+    tip.style.left=(best.px/W*rect.width)+"px";
+    tip.style.top=(best.py/H*rect.height)+"px";
+    tip.innerHTML='<b>'+best.date.toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})+'</b><br><span style="color:'+(best.bal<0?'var(--bad)':'var(--good)')+'">'+money(best.bal)+'</span>';
+  }
+  function clr(){var xh=document.getElementById("xhair"); if(xh)xh.style.display="none"; var t=document.getElementById("charttip"); if(t)t.style.display="none";}
+  svgEl.addEventListener("mousemove",handle);
+  svgEl.addEventListener("mouseleave",clr);
+  svgEl.addEventListener("touchstart",handle,{passive:true});
+  svgEl.addEventListener("touchmove",handle,{passive:true});
+}
+
+/* ---------- full forecast list ---------- */
+function renderForecast(){
+  var F=buildForecast();
+  document.getElementById("fcastrange").textContent=
+    F.rows.length+" events to "+fcEnd().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+  var balEl=document.getElementById("fcast-bal-val");
+  balEl.textContent=money0(S.settings.startBalance);
+  balEl.className="val"+(S.settings.startBalance<0?" bad":"");
+  var html='<tr><th>Date</th><th>Item</th><th class="r">In/Out</th><th class="r">Balance</th></tr>';
+  var curMonth="";
+  F.rows.forEach(function(r){
+    var mk=r.date.toLocaleDateString("en-GB",{month:"long",year:"numeric"});
+    if(mk!==curMonth){curMonth=mk;
+      html+='<tr><td colspan="4" style="background:var(--card2);color:var(--muted);font-weight:600;font-size:12px">'+mk+'</td></tr>';}
+    var isLow=Math.abs(r.bal-F.min)<0.005;
+    var rc=(r.amt>0?'income':(r.kind==="oneoff"?'ofx':''));
+    var canEdit=r.id&&r.occ;
+    var tag=r.ovr?(Math.abs(r.amt)<0.005
+      ?' <span style="color:var(--muted);font-size:11px">(not worked)</span>'
+      :' <span style="color:var(--accent);font-size:11px">(edited)</span>'):'';
+    var click=canEdit?' fc-edit" onclick="editOccurrence(\''+r.id+'\',\''+r.occ+'\')"':'"';
+    html+='<tr class="'+rc+' '+(isLow?'low':'')+click+'>'+
+      '<td>'+fmtDate(r.date)+'</td><td>'+r.name+tag+'</td><td class="r">'+money(r.amt)+'</td>'+
+      '<td class="r" style="color:'+(r.bal<0?'var(--bad)':'var(--ink)')+'">'+money(r.bal)+'</td></tr>';
+  });
+  document.getElementById("fcasttable").innerHTML=html;
+}
+
+/* ---------- schedule table ---------- */
+function ordinal(n){var s=["th","st","nd","rd"],v=n%100;return s[(v-20)%10]||s[v]||s[0];}
+function renderSched(){
+  var order={monthly:0,weekly:1,oneoff:2};
+  function k(it){return it.kind==="monthly"?it.day:it.kind==="weekly"?it.weekday:Date.parse(it.date);}
+  var items=S.items.slice().sort(function(a,b){return (order[a.kind]-order[b.kind])||(k(a)-k(b));});
+  var wd=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  document.getElementById("schedcount").textContent=S.items.length+" items";
+  document.getElementById("schedtable").innerHTML=
+   '<colgroup><col class="sc-item"><col class="sc-when"><col class="sc-amt"><col class="sc-act"></colgroup>'+
+   '<tr><th>Item</th><th>When</th><th class="r">Amount</th><th></th></tr>'+
+   items.map(function(it){
+     var when= it.kind==="monthly"?("Monthly &middot; "+it.day+ordinal(it.day)) :
+               it.kind==="weekly"?("Weekly &middot; "+wd[it.weekday]) :
+               ("One-off &middot; "+d(it.date).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"2-digit"}));
+     var rc=(it.amount>0?'income':(it.kind==="oneoff"?'ofx':''));
+     var pc=(it.kind==="oneoff"&&it.amount<0)?"pill oneoff":"pill";
+     var fmtD=function(s){return d(s).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"2-digit"});};
+     var span=(it.kind!=="oneoff"&&(it.startOn||it.until))?
+       (it.startOn&&it.until?("from "+fmtD(it.startOn)+" to "+fmtD(it.until)):
+        it.startOn?("from "+fmtD(it.startOn)):("ends "+fmtD(it.until))):"";
+     var adj=(it.kind!=="oneoff"&&it.overrides)?Object.keys(it.overrides).length:0;
+     if(adj) span+=(span?" &middot; ":"")+adj+" adjusted";
+     var endNote=span?'<div class="muted" style="font-size:11px;margin-top:3px">'+span+'</div>':'';
+     return '<tr class="'+rc+' sched-row" onclick="editItem(\''+it.id+'\')">'+
+       '<td>'+it.name+'</td><td><span class="'+pc+'">'+when+'</span>'+endNote+'</td>'+
+       '<td class="r">'+money(it.amount)+'</td>'+
+       '<td class="r"><button class="tiny del" onclick="event.stopPropagation();delItem(\''+it.id+'\')" aria-label="Delete">&times;</button></td></tr>';
+   }).join("");
+}
+
+/* ---------- add / edit ---------- */
+/* identity of an item for duplicate detection: same name, amount, kind and schedule */
+function itemKey(it){
+  var sched=it.kind==="monthly"?it.day:it.kind==="weekly"?it.weekday:it.date;
+  return [it.kind,(it.name||"").trim().toLowerCase(),it.amount,sched,it.startOn||"",it.until||""].join("|");
+}
+function showKind(k){
+  document.getElementById("f_monthly_wrap").classList.toggle("hide",k!=="monthly");
+  document.getElementById("f_weekly_wrap").classList.toggle("hide",k!=="weekly");
+  document.getElementById("f_oneoff_wrap").classList.toggle("hide",k!=="oneoff");
+  document.getElementById("f_recur_wrap").classList.toggle("hide",k==="oneoff");
+}
+function clearForm(){
+  document.getElementById("f_id").value="";
+  document.getElementById("f_name").value="";
+  document.getElementById("f_amt").value="";
+  document.getElementById("f_dir").value="-1";
+  document.getElementById("f_kind").value="monthly";
+  document.getElementById("f_day").value="1";
+  document.getElementById("f_weekday").value="1";
+  document.getElementById("f_date").value=S.settings.asAt;
+  document.getElementById("f_start").value="";
+  document.getElementById("f_until").value="";
+  showKind("monthly");
+  document.getElementById("addtitle").textContent="Add a money event";
+}
+function editItem(id){
+  var it=S.items.filter(function(x){return x.id===id;})[0]; if(!it)return;
+  document.getElementById("f_id").value=it.id;
+  document.getElementById("f_name").value=it.name;
+  document.getElementById("f_amt").value=Math.abs(it.amount);
+  document.getElementById("f_dir").value=it.amount>0?"1":"-1";
+  document.getElementById("f_kind").value=it.kind; showKind(it.kind);
+  if(it.kind==="monthly")document.getElementById("f_day").value=it.day;
+  if(it.kind==="weekly")document.getElementById("f_weekday").value=it.weekday;
+  if(it.kind==="oneoff")document.getElementById("f_date").value=it.date;
+  document.getElementById("f_start").value=it.startOn||"";
+  document.getElementById("f_until").value=it.until||"";
+  document.getElementById("addtitle").textContent="Edit: "+it.name;
+  switchTab("add");
+}
+function delItem(id){
+  if(!confirm("Delete this item?"))return;
+  S.items=S.items.filter(function(x){return x.id!==id;}); save(); renderSched(); render();
+}
+/* edit a single occurrence of a recurring item (override its amount for one date) */
+function editOccurrence(id,occ){
+  var it=S.items.filter(function(x){return x.id===id;})[0]; if(!it)return;
+  var sign=it.amount<0?-1:1, inWord=it.amount<0?"out":"in";
+  var has=it.overrides&&(occ in it.overrides);
+  var cur=has?Math.abs(it.overrides[occ]):Math.abs(it.amount);
+  var label=d(occ).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+  var resp=prompt('"'+it.name+'" on '+label+'\n\nAmount '+inWord+' (£) for just this date. Normal is £'+Math.abs(it.amount)+'.\nEnter 0 if you didn\'t work this week, or leave blank to reset to normal.', cur);
+  if(resp===null) return;
+  it.overrides=it.overrides||{};
+  if(resp.trim()===""){ delete it.overrides[occ]; }
+  else{
+    var v=parseFloat(resp);
+    if(isNaN(v)){ alert("Enter a number, or leave it blank to reset."); return; }
+    it.overrides[occ]=sign*Math.abs(v);
+  }
+  if(it.overrides&&Object.keys(it.overrides).length===0) delete it.overrides;
+  save(); renderForecast(); render(); renderSched();
+}
+function saveItem(){
+  var name=document.getElementById("f_name").value.trim();
+  var amt=Math.abs(parseFloat(document.getElementById("f_amt").value));
+  if(!name||isNaN(amt)){alert("Give it a name and an amount.");return;}
+  var signed=amt*Number(document.getElementById("f_dir").value), kind=document.getElementById("f_kind").value;
+  var base={name:name,amount:signed,kind:kind};
+  if(kind==="monthly")base.day=Math.min(31,Math.max(1,parseInt(document.getElementById("f_day").value)||1));
+  if(kind==="weekly")base.weekday=Number(document.getElementById("f_weekday").value);
+  if(kind==="oneoff")base.date=document.getElementById("f_date").value||S.settings.asAt;
+  if(kind!=="oneoff")base.startOn=document.getElementById("f_start").value||"";
+  if(kind!=="oneoff")base.until=document.getElementById("f_until").value||"";
+  var fid=document.getElementById("f_id").value;
+  /* guard against accidentally stacking an identical item */
+  var clash=S.items.filter(function(x){return x.id!==fid && itemKey(x)===itemKey(base);}).length>0;
+  if(clash && !confirm('An identical item ("'+name+'", same amount and schedule) is already in your plan.\n\nAdd another copy anyway?')) return;
+  if(fid){var it=S.items.filter(function(x){return x.id===fid;})[0]; Object.keys(base).forEach(function(kk){it[kk]=base[kk];});}
+  else{base.id=uid();S.items.push(base);}
+  save();
+  /* if this item reaches past the forecast window, offer to extend it (item is saved either way) */
+  var far=(kind==="oneoff")?base.date:(base.until||"");
+  if(far&&d(far)>fcEnd()){
+    var f1=d(far).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+    var f2=fcEnd().toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+    if(confirm('"'+name+'" runs to '+f1+', past your forecast end date of '+f2+'.\n\nExtend the forecast to '+f1+' so it shows? (It\'s saved either way.)')){
+      S.settings.endDate=far; save();
+    }
+  }
+  clearForm();renderSched();render();switchTab("dash");
+}
+
+/* ---------- big purchase check ---------- */
+function checkBuy(){
+  var amt=Math.abs(parseFloat(document.getElementById("c_amt").value));
+  var date=document.getElementById("c_date").value||S.settings.asAt;
+  var out=document.getElementById("c_out");
+  if(isNaN(amt)){out.innerHTML="";return;}
+  var base=buildForecast();
+  var withBuy=buildForecast({amt:-amt,date:date,name:"This purchase"});
+  var floor=S.settings.floor, od=S.settings.overdraft;
+  var okFloor=withBuy.min>=floor, okOD=withBuy.min>=-od;
+  var cls,msg;
+  if(okFloor){cls="good";msg="Yes — you can absorb this.";}
+  else if(okOD){cls="warn";msg="Tight — it pushes you below your floor and into the overdraft.";}
+  else{cls="bad";msg="No — this breaches your overdraft limit.";}
+  out.innerHTML='<div class="checkout" style="border-color:var(--'+cls+')">'+
+    '<div class="bignum" style="color:var(--'+cls+')">'+msg+'</div>'+
+    '<div class="muted" style="margin-top:6px">'+
+      'Lowest point today: <b style="color:var(--ink)">'+money0(base.min)+'</b> on '+base.minDate.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+'.<br>'+
+      'After this '+money0(amt)+' purchase: <b style="color:var(--'+cls+')">'+money0(withBuy.min)+'</b> on '+withBuy.minDate.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+'.<br>'+
+      'Your safety floor is '+money0(floor)+'; overdraft limit '+money0(od)+'.'+
+    '</div></div>';
+}
+
+/* ---------- unpaid weeks / income shock ---------- */
+function checkShock(){
+  var weeks=Math.max(0,parseInt(document.getElementById("k_weeks").value)||0);
+  var from=document.getElementById("k_date").value||S.settings.asAt;
+  var out=document.getElementById("k_out");
+  if(!weeks){out.innerHTML="";return;}
+  var base=buildForecast();
+  var shocked=buildForecast(null,{from:d(from),weeks:weeks});
+  var lost=base.end-shocked.end;
+  var floor=S.settings.floor, od=S.settings.overdraft;
+  var okFloor=shocked.min>=floor, okOD=shocked.min>=-od;
+  var cls,msg;
+  if(lost<=0){
+    out.innerHTML='<div class="checkout" style="border-color:var(--warn)"><div class="muted">No wage income falls in that window, so nothing changes. Check the start date lands on or before a payday.</div></div>';
+    return;
+  }
+  if(okFloor){cls="good";msg="You'd ride it out — stays above your floor.";}
+  else if(okOD){cls="warn";msg="Tight — you'd drop below your floor and lean on the overdraft.";}
+  else{cls="bad";msg="No — this breaches your overdraft limit.";}
+  out.innerHTML='<div class="checkout" style="border-color:var(--'+cls+')">'+
+    '<div class="bignum" style="color:var(--'+cls+')">'+msg+'</div>'+
+    '<div class="muted" style="margin-top:6px">'+
+      weeks+(weeks===1?' week':' weeks')+' unpaid from '+d(from).toLocaleDateString("en-GB",{day:"numeric",month:"short"})+' &mdash; '+money0(lost)+' of wages removed.<br>'+
+      'Lowest point as planned: <b style="color:var(--ink)">'+money0(base.min)+'</b> on '+base.minDate.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+'.<br>'+
+      'With the gap: <b style="color:var(--'+cls+')">'+money0(shocked.min)+'</b> on '+shocked.minDate.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+'.<br>'+
+      'Your safety floor is '+money0(floor)+'; overdraft limit '+money0(od)+'.'+
+    '</div></div>';
+}
+
+/* ---------- savings / put by ---------- */
+function savingsEvents(amt,kind,fromD,toD){
+  var start=d(S.settings.asAt), end=toD||fcEnd(), evs=[];
+  amt=Math.abs(amt); if(!amt||end<=start) return evs;
+  if(kind==="oneoff"){
+    var dt=(fromD&&fromD>start)?fromD:addDays(start,1);
+    if(dt>start&&dt<=end) evs.push({date:dt,name:"→ Savings",amt:-amt,kind:"oneoff"});
+  } else if(kind==="weekly"){
+    var w=(fromD&&fromD>start)?new Date(fromD):addDays(start,7);
+    for(;w<=end;w=addDays(w,7)){ if(w>start) evs.push({date:new Date(w),name:"→ Savings",amt:-amt,kind:"oneoff"}); }
+  } else {
+    var anchor=(fromD&&fromD>start)?fromD:start, y=anchor.getFullYear(), m=anchor.getMonth(), dom=anchor.getDate();
+    while(true){
+      var dim=new Date(y,m+1,0).getDate(), dt2=new Date(y,m,Math.min(dom,dim),12);
+      if(dt2>end) break;
+      if(dt2>start) evs.push({date:dt2,name:"→ Savings",amt:-amt,kind:"oneoff"});
+      m++;
+    }
+  }
+  return evs;
+}
+function fillSavings(){
+  var F=buildForecast(), spare=F.min-S.settings.floor;
+  var when=F.minDate.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+  var el=document.getElementById("v_spare");
+  if(spare>0.5){
+    el.innerHTML='You can set aside up to <b style="color:var(--good)">'+money0(spare)+'</b> as a lump today and never drop below your safety floor. Tightest point on this plan: '+money0(F.min)+' on '+when+'.';
+  } else {
+    el.innerHTML='<b style="color:var(--warn)">No spare lump right now</b> &mdash; at your tightest point you\'re '+(F.min<S.settings.floor?'below':'right on')+' your floor ('+money0(F.min)+' on '+when+'). Try saving <i>after</i> that date, or a smaller regular amount below.';
+  }
+}
+function checkSavings(){
+  var amt=Math.abs(parseFloat(document.getElementById("v_amt").value));
+  var kind=document.getElementById("v_freq").value;
+  var fromV=document.getElementById("v_from").value||S.settings.asAt;
+  var target=Math.abs(parseFloat(document.getElementById("v_target").value));
+  var byV=document.getElementById("v_bydate").value, purpose=document.getElementById("v_purpose").value.trim();
+  var out=document.getElementById("v_out");
+  if(isNaN(amt)||amt<=0){ out.innerHTML=""; return; }
+  var fromD=d(fromV), byD=byV?d(byV):null, toD=byD||fcEnd();
+  var evs=savingsEvents(amt,kind,fromD,toD);
+  if(!evs.length){ out.innerHTML='<div class="checkout" style="border-color:var(--warn)"><div class="muted">That plan puts no contributions inside your forecast &mdash; check the dates.</div></div>'; return; }
+  var base=buildForecast(), F2=buildForecast(null,null,evs), floor=S.settings.floor, od=S.settings.overdraft;
+  var worsened=base.min-F2.min, cls,msg;
+  if(F2.min>=floor){ cls="good"; msg="Yes — you can set this aside and stay above your floor."; }
+  else if(worsened<0.5){ cls="good"; msg="Safe to save — this doesn't touch your tightest point."; }
+  else if(F2.min>=-od){ cls="warn"; msg="Tight — saving this lowers your tightest point below your floor."; }
+  else{ cls="bad"; msg="Too much — saving this breaches your overdraft."; }
+  var potTo=byD||fcEnd();
+  var pot=evs.filter(function(e){return e.date<=potTo;}).reduce(function(s,e){return s+Math.abs(e.amt);},0);
+  var line2=(kind==="oneoff")
+    ? 'Sets aside <b>'+money0(amt)+'</b> on '+evs[0].date.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+'.'
+    : 'Sets aside <b>'+money0(amt)+'</b> '+kind+' &mdash; <b>'+money0(pot)+'</b> put by '+(byD?byD.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}):'your forecast end')+'.';
+  var impact=(worsened<0.5)?' &mdash; unchanged from your current plan.':' &mdash; '+money0(worsened)+' lower than without it.';
+  var tline='';
+  if(!isNaN(target)&&target>0){
+    var cum=0, hit=null;
+    evs.slice().sort(function(a,b){return a.date-b.date;}).forEach(function(e){ if(!hit){ cum+=Math.abs(e.amt); if(cum>=target) hit=e.date; } });
+    tline = hit
+      ? 'Reaches your <b>'+money0(target)+'</b> goal'+(purpose?' for '+purpose:'')+' on <b>'+hit.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})+'</b>.'
+      : 'Falls <b>'+money0(target-pot)+'</b> short of your '+money0(target)+' goal'+(purpose?' for '+purpose:'')+' by '+(byD?byD.toLocaleDateString("en-GB",{day:"numeric",month:"short"}):'forecast end')+'.';
+  }
+  out.innerHTML='<div class="checkout" style="border-color:var(--'+cls+')">'+
+    '<div class="bignum" style="color:var(--'+cls+')">'+msg+'</div>'+
+    '<div class="muted" style="margin-top:6px">'+line2+
+      '<br>Lowest point after saving: <b style="color:var(--'+cls+')">'+money0(F2.min)+'</b> on '+F2.minDate.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+impact+
+      (tline?'<br>'+tline:'')+
+    '</div></div>';
+}
+function commitSavings(){
+  var amt=Math.abs(parseFloat(document.getElementById("v_amt").value));
+  if(isNaN(amt)||amt<=0){ alert("Enter an amount to set aside first."); return; }
+  var kind=document.getElementById("v_freq").value;
+  var fromV=document.getElementById("v_from").value||S.settings.asAt;
+  var byV=document.getElementById("v_bydate").value;
+  var purpose=document.getElementById("v_purpose").value.trim()||"Savings";
+  var name="Savings: "+purpose;
+  if(!confirm('Add "'+name+'" to your plan ('+money0(amt)+(kind==="oneoff"?' once':' '+kind)+')?\n\nThis ring-fences the money by lowering your spendable forecast. You can delete it later in Schedule.')) return;
+  var item={id:uid(),name:name,amount:-amt,kind:kind};
+  if(kind==="oneoff"){ item.date=fromV; }
+  else if(kind==="weekly"){ item.weekday=d(fromV).getDay(); item.startOn=fromV; if(byV)item.until=byV; }
+  else { item.day=d(fromV).getDate(); item.startOn=fromV; if(byV)item.until=byV; }
+  S.items.push(item); save(); renderSched(); render(); fillSavings();
+  alert('Added "'+name+'" to your plan.');
+}
+
+/* ---------- settings ---------- */
+function fillSettings(){
+  document.getElementById("s_bal").value=S.settings.startBalance;
+  document.getElementById("s_date").value=S.settings.asAt;
+  document.getElementById("s_od").value=S.settings.overdraft;
+  document.getElementById("s_floor").value=S.settings.floor;
+  document.getElementById("s_end").value=S.settings.endDate||iso(fcEnd());
+  document.getElementById("s_autow").value=S.settings.autoWage;
+  document.getElementById("s_autowamt").value=S.settings.autoWageAmt;
+  document.getElementById("s_autowwd").value=S.settings.autoWageWd;
+}
+function saveSettings(){
+  var endVal=document.getElementById("s_end").value;
+  var asAtVal=document.getElementById("s_date").value||S.settings.asAt;
+  if(endVal && d(endVal)<=d(asAtVal)){ alert("Your forecast end date needs to be after the \"as at\" date."); return; }
+  S.settings.startBalance=parseFloat(document.getElementById("s_bal").value)||0;
+  S.settings.asAt=document.getElementById("s_date").value||S.settings.asAt;
+  S.settings.overdraft=parseFloat(document.getElementById("s_od").value)||0;
+  S.settings.floor=parseFloat(document.getElementById("s_floor").value)||0;
+  if(endVal) S.settings.endDate=endVal;
+  S.settings.autoWage=Number(document.getElementById("s_autow").value);
+  S.settings.autoWageAmt=parseFloat(document.getElementById("s_autowamt").value)||0;
+  S.settings.autoWageWd=Number(document.getElementById("s_autowwd").value);
+  save();render();switchTab("dash");
+}
+
+/* ---------- remove duplicate items ---------- */
+function dedupeItems(){
+  var seen={}, kept=[], removed=0;
+  S.items.forEach(function(it){
+    var key=itemKey(it);
+    if(seen[key]){removed++;} else {seen[key]=1;kept.push(it);}
+  });
+  if(!removed){alert("No exact duplicates found — every item has a unique name, amount and schedule.");return;}
+  if(!confirm("Found "+removed+" duplicate item"+(removed===1?"":"s")+" (identical name, amount and schedule).\n\nRemove "+(removed===1?"it":"them")+"? One copy of each is kept.")) return;
+  S.items=kept; save(); renderSched(); render();
+  alert("Removed "+removed+" duplicate"+(removed===1?"":"s")+".");
+}
+/* ---------- tabs ---------- */
+function switchTab(t){
+  var tabsEls=document.querySelectorAll(".tab");
+  for(var i=0;i<tabsEls.length;i++){ tabsEls[i].classList.toggle("active",tabsEls[i].getAttribute("data-tab")===t); }
+  ["dash","fcast","sched","add","check","shock","savings","set"].forEach(function(id){document.getElementById(id).classList.toggle("hide",id!==t);});
+  if(t==="fcast")renderForecast();
+  if(t==="sched")renderSched();
+  if(t==="set"){ fillSettings(); fillSync(); }
+  if(t==="shock"&&!document.getElementById("k_date").value)document.getElementById("k_date").value=S.settings.asAt;
+  if(t==="savings"){ if(!document.getElementById("v_from").value)document.getElementById("v_from").value=S.settings.asAt; fillSavings(); }
+  if(t==="add"&&!document.getElementById("f_id").value)clearForm();
+  window.scrollTo(0,0);
+}
+
+/* ---------- wire up ---------- */
+(function(){
+  var tabsEls=document.querySelectorAll(".tab");
+  for(var i=0;i<tabsEls.length;i++){ (function(el){ el.onclick=function(){switchTab(el.getAttribute("data-tab"));}; })(tabsEls[i]); }
+  document.getElementById("f_kind").onchange=function(){showKind(document.getElementById("f_kind").value);};
+  document.getElementById("f_save").onclick=saveItem;
+  document.getElementById("f_cancel").onclick=clearForm;
+  document.getElementById("c_go").onclick=checkBuy;
+  document.getElementById("k_go").onclick=checkShock;
+  document.getElementById("v_go").onclick=checkSavings;
+  document.getElementById("v_commit").onclick=commitSavings;
+  document.getElementById("s_save").onclick=saveSettings;
+  document.getElementById("y_connect").onclick=connectSync;
+  document.getElementById("y_sync").onclick=pullFromCloud;
+  document.getElementById("y_off").onclick=disconnectSync;
+  document.getElementById("dedupe").onclick=dedupeItems;
+  document.getElementById("exp").onclick=function(){
+    var blob=new Blob([JSON.stringify(S,null,2)],{type:"application/json"});
+    var a=document.createElement("a");a.href=URL.createObjectURL(blob);
+    a.download="finance-tracker-backup-"+iso(new Date())+".json";a.click();
+  };
+  document.getElementById("impbtn").onclick=function(){document.getElementById("impfile").click();};
+  document.getElementById("impfile").onchange=function(e){
+    var f=e.target.files[0];if(!f)return;var r=new FileReader();
+    r.onload=function(){try{S=JSON.parse(r.result);save();render();renderSched();fillSettings();alert("Backup restored.");switchTab("dash");}
+    catch(err){alert("That file didn't look right.");}};r.readAsText(f);
+  };
+  document.getElementById("reset").onclick=function(){if(confirm("Reset everything back to the pre-loaded figures?")){S=seed();save();render();renderSched();fillSettings();switchTab("dash");}};
+})();
+
+/* expose for inline buttons */
+window.editItem=editItem;
+window.delItem=delItem;
+window.editOccurrence=editOccurrence;
+
+/* ---------- register service worker (offline / installable) ---------- */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",function(){
+    navigator.serviceWorker.register("./sw.js").catch(function(){});
+  });
+}
+
+/* ---------- go ---------- */
+clearForm();
+render();
+if(syncKey()){ syncResting(); pullFromCloud(); }
+document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="hidden" && syncKey()){ clearTimeout(pushTimer); pushToCloud(); }
+});
+</script>
+</body>
+</html>
