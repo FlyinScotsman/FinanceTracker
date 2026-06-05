@@ -67,8 +67,11 @@
     .row,.row3{grid-template-columns:1fr 1fr}
     .kpi .val{font-size:19px}
     th,td{padding:7px 5px;font-size:12.5px}
-    td:nth-child(2),th:nth-child(2){white-space:normal;word-break:break-word}
     td.r,th.r{white-space:nowrap}
+    /* Forecast & Next-30: let the Item (2nd col) wrap so Balance stays visible */
+    #next30 td:nth-child(2),#fcasttable td:nth-child(2){white-space:normal;word-break:break-word}
+    /* Schedule: let the Item (1st col) wrap, keep the When pill on one line */
+    #schedtable td:nth-child(1){white-space:normal;word-break:break-word}
   }
 </style>
 </head>
